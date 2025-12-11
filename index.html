@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Kanban – draggable="true" visible in HTML</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body {font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background:#f5f7fa; margin:0; padding:20px; color:#172b4d;}
+  .board {display:flex; gap:20px; overflow-x:auto; padding-bottom:20px;}
+  .column {background:#e6e9ef; border-radius:8px; width:340px; min-width:340px; padding:12px;}
+  .column-header {display:flex; justify-content:space-between; align-items:center;
+                  font-weight:600; font-size:14px; margin-bottom:8px;}
+  .add-btn {cursor:pointer; font-size:24px; color:#5e6c84;}
+  .add-btn:hover {color:#172b4d;}
+  .cards {min-height:40px;}
+  .card {
+    background:white; border-radius:6px; padding:12px; margin-bottom:12px;
+    box-shadow:0 1px 3px rgba(0,0,0,0.12); cursor:grab; user-select:none;
+  }
+  .card:hover {box-shadow:0 4px 12px rgba(0,0,0,0.15);}
+  .card.dragging {opacity:0.4;}
+  .card:active {cursor:grabbing;}
+  .card-title {font-weight:600; margin-bottom:6px;}
+  .card-desc {color:#5e6c84; margin-bottom:8px;}
+  .card-meta {display:flex; gap:12px; font-size:12px; color:#5e6c84; margin-bottom:8px;}
+  .badge {padding:2px 8px; border-radius:12px; font-size:11px; font-weight:600;}
+  .badge.completed   {background:#e3fcef; color:#006644;}
+  .badge.not-implemented {background:#f1f3f9; color:#5e6c84;}
+  .tag {margin-top:8px; font-weight:600; font-size:12px;}
+
+  .modal {display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5);
+          align-items:center; justify-content:center; z-index:1000;}
+  .modal.active {display:flex;}
+  .modal-content {background:white; padding:24px; border-radius:8px; width:400px;
+                  max-width:90vw; box-shadow:0 10px 30px rgba(0,0,0,0.3);}
+  .modal-content input, .modal-content select, .modal-content textarea {
+    width:100%; box-sizing:border-box; padding:10px; margin:8px 0 16px;
+    border:1px solid #ddd; border-radius:4px;}
+  .modal-buttons {display:flex; justify-content:flex-end; gap:12px; margin-top:20px;}
+  button {padding:8px 16px; border:none; border-radius:4px; cursor:pointer;}
+  button.primary {background:#0052cc; color:white;}
+  button.cancel  {background:#f1f3f9;}
+</style>
+</head>
+<body>
+
+<div class="board" id="board"></div>
+
+<div class="modal" id="modal">
+  <div class="modal-content">
+    <h2>Add New Item</h2>
+    <input type="text" id="title" placeholder="Title">
+    <textarea id="description" rows="3" placeholder="Description"></textarea>
+    <select id="status">
+      <option value="not-implemented">Not Implemented</option>
+      <option value="completed">Completed</option>
+    </select>
+    <input type="text" id="tag" placeholder="Tag (e.g. #Redwood)">
+    <div class="modal-buttons">
+      <button class="cancel" onclick="closeModal()">Cancel</button>
+      <button class="primary" onclick="saveCard()">Add Card</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Load or initialise data
+let cards = JSON.parse(localStorage.getItem('kanbanCards') || '[]');
+if (cards.length === 0) {
+  cards = [
+    {id:1, column:"now",   title:"Industry | Oracle Communications Launch Experience", desc:"Bulk Price Update", status:"not-implemented", tag:"#Redwood"},
+    {id:2, column:"now",   title:"SCM | Procurement", desc:"Secure Supplier Portal Using Web...", status:"completed", tag:"4"},
+    {id:3, column:"next",  title:"SCM | Warehouse Management | Outbound Logistics", desc:"Support Direct Allocation of Pallets", status:"not-implemented", tag:"#Tag 1"},
+    {id:4, column:"later", title:"HCM | Talent Management | Goal Management", desc:"AI-Suggested Goals Based on...", status:"completed", tag:"#AI - Generative #Redwood"}
+  ];
+  localStorage.setItem('kanbanCards', JSON.stringify(cards));
+}
+
+const columns = ["now", "next", "later"];
+let currentColumn = null;
+
+function render() {
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+
+  columns.forEach(colId => {
+    const count = cards.filter(c => c.column === colId).length;
+    const title = colId.charAt(0).toUpperCase() + colId.slice(1);
+
+    // Create column
+    const colDiv = document.createElement('div');
+    colDiv.className = 'column';
+    colDiv.innerHTML = `
+      <div class="column-header">
+        <span>${title} <small>(${count} items)</small></span>
+        <span class="add-btn" onclick="openModal('${colId}')">+</span>
+      </div>
+      <div class="cards" id="${colId}"></div>
+    `;
+    board.appendChild(colDiv);
+
+    // Put cards inside column
+    const container = document.getElementById(colId);
+
+    cards.filter(c => c.column === colId).forEach(card => {
+      // THIS IS THE IMPORTANT PART – draggable="true" is in the actual HTML string
+      const cardHTML = `
+        <div class="card" draggable="true" data-id="${card.id}"
+             ondragstart="dragStart(event)" ondragend="dragEnd(event)">
+          <div class="card-title">${card.title}</div>
+          <div class="card-desc">${card.desc}</div>
+          <div class="card-meta">
+            <span>25D | Ready to use</span>
+            <span>Due: No Due Date</span>
+            <span>Assigned: 0</span>
+          </div>
+          <span class="badge ${card.status}">
+            ${card.status === 'completed' ? 'Completed' : 'Not Implemented'}
+          </span>
+          <div class="tag" style="color:${card.tag.includes('AI')?'#006644':'#7a2d9e'};">${card.tag}</div>
+        </div>
+      `;
+      container.insertAdjacentHTML('beforeend', cardHTML);
+    });
+  });
+}
+
+// Drag functions
+function dragStart(e) {
+  e.dataTransfer.setData('text/plain', e.target.dataset.id);
+  setTimeout(() => e.target.classList.add('dragging'), 0);
+}
+function dragEnd(e) {
+  e.target.classList.remove('dragging');
+}
+
+// Drop on any column
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('drop', e => {
+  e.preventDefault();
+  const id = Number(e.dataTransfer.getData('text/plain'));
+  const cardEl = document.querySelector(`.card[data-id="${id}"]`);
+  const dropZone = e.target.closest('.cards');
+  if (dropZone && cardEl) {
+    const newColumn = dropZone.id;
+    const card = cards.find(c => c.id === id);
+    if (card) {
+      card.column = newColumn;
+      localStorage.setItem('kanbanCards', JSON.stringify(cards));
+      render(); // re-render so draggable="true" stays in HTML
+    }
+  }
+});
+
+// Modal
+function openModal(colId) {
+  currentColumn = colId;
+  document.getElementById('modal').classList.add('active');
+}
+function closeModal() {
+  document.getElementById('modal').classList.remove('active');
+  document.getElementById('title').value = '';
+  document.getElementById('description').value = '';
+  document.getElementById('tag').value = '';
+}
+function saveCard() {
+  const title = document.getElementById('title').value.trim();
+  if (!title) return alert('Title required');
+
+  cards.push({
+    id: Date.now(),
+    column: currentColumn,
+    title,
+    desc: document.getElementById('description').value.trim(),
+    status: document.getElementById('status').value,
+    tag: document.getElementById('tag').value.trim() || '#New'
+  });
+
+  localStorage.setItem('kanbanCards', JSON.stringify(cards));
+  closeModal();
+  render();
+}
+
+document.getElementById('modal').onclick = e => {
+  if (e.target === e.currentTarget) closeModal();
+};
+
+render(); // start
+</script>
+</body>
+</html>
