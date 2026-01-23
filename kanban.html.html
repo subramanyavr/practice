@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Kanban Board – Minimal</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #f5f7fa;
+    margin: 0;
+    padding: 20px;
+    color: #172b4d;
+  }
+  .board { display: flex; gap: 20px; overflow-x: auto; padding: 20px 0; }
+  .column {
+    background: #e6e9ef;
+    border-radius: 8px;
+    width: 340px;
+    min-width: 340px;
+    padding: 12px;
+  }
+  .column-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+  .add-btn {
+    cursor: pointer;
+    font-size: 24px;
+    color: #5e6c84;
+  }
+  .add-btn:hover { color: #172b4d; }
+
+  .cards {
+    min-height: 100px;
+    padding: 8px;
+    border-radius: 6px;
+    position: relative;
+  }
+
+  .card {
+    background: white;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    cursor: grab;
+    user-select: none;
+    position: relative;
+  }
+  .card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+  .card.dragging { opacity: 0.4; transform: rotate(5deg); }
+
+  .card-title { font-weight: 600; margin-bottom: 6px; font-size: 14px; }
+  .card-desc { color:#5e6c84; margin-bottom:8px; font-size: 13px; }
+  .card-meta { display:flex; gap:12px; font-size:12px; color:#5e6c84; margin-bottom:8px; }
+  .badge { padding:2px 8px; border-radius:12px; font-size:11px; font-weight:600; }
+  .badge.completed   { background:#e3fcef; color:#006644; }
+  .badge.not-implemented { background:#f1f3f9; color:#5e6c84; }
+  .tag { margin-top:8px; font-weight:600; font-size:12px; }
+
+  /* Three dots menu */
+  .menu-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 18px;
+    color: #6b778c;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .menu-btn:hover { background: #ebecf0; }
+
+  .card-menu {
+    position: absolute;
+    top: 36px;
+    right: 4px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    width: 160px;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-8px);
+    transition: all 0.15s;
+  }
+  .card-menu.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+  }
+  .menu-item {
+    padding: 10px 16px;
+    font-size: 14px;
+    cursor: pointer;
+    color: #172b4d;
+  }
+  .menu-item:hover { background: #f1f3f9; }
+  .menu-item.danger:hover { background: #ffebee; color: #c00; }
+
+  .drop-indicator {
+    height: 4px;
+    background: #0052cc;
+    border-radius: 2px;
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .drop-indicator.show { opacity: 1; }
+
+  .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5);
+           align-items:center; justify-content:center; z-index:1000; }
+  .modal.active { display:flex; }
+  .modal-content {
+    background:white; padding:24px; border-radius:8px; width:400px;
+    max-width:90vw; box-shadow:0 10px 30px rgba(0,0,0,0.3);
+  }
+  .modal-content input, .modal-content textarea {
+    width:100%; box-sizing:border-box; padding:10px; margin:8px 0 16px;
+    border:1px solid #ddd; border-radius:4px;
+  }
+  .modal-buttons { display:flex; justify-content:flex-end; gap:12px; margin-top:20px; }
+  button { padding:8px 16px; border:none; border-radius:4px; cursor:pointer; }
+  button.primary { background:#0052cc; color:white; }
+  button.cancel { background:#f1f3f9; }
+</style>
+</head>
+<body>
+
+<div class="board" id="board"></div>
+
+<div class="modal" id="modal">
+  <div class="modal-content">
+    <h2>Add New Card</h2>
+    <input type="text" id="title" placeholder="Title">
+    <textarea id="description" rows="3" placeholder="Description"></textarea>
+    <select id="status">
+      <option value="not-implemented">Not Implemented</option>
+      <option value="completed">Completed</option>
+    </select>
+    <input type="text" id="tag" placeholder="Tag (e.g. #Redwood)">
+    <div class="modal-buttons">
+      <button class="cancel" onclick="closeModal()">Cancel</button>
+      <button class="primary" onclick="saveCard()">Add Card</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let cards = JSON.parse(localStorage.getItem('kanbanCards') || '[]');
+if (cards.length === 0) {
+  cards = [
+    {id:1, column:"now",   title:"Industry | Oracle Communications", desc:"Bulk Price Update", status:"not-implemented", tag:"#Redwood", order:0},
+    {id:2, column:"now",   title:"SCM | Procurement", desc:"Secure Supplier Portal", status:"completed", tag:"#Procurement", order:1},
+    {id:3, column:"next",  title:"Warehouse Management", desc:"Direct Allocation", status:"not-implemented", tag:"#Logistics", order:0},
+    {id:4, column:"later", title:"HCM | Goal Management", desc:"AI-Suggested Goals", status:"completed", tag:"#AI", order:0}
+  ];
+  localStorage.setItem('kanbanCards', JSON.stringify(cards));
+}
+
+const columns = ["now", "next", "later"];
+let draggedCard = null;
+
+function render() {
+  document.getElementById('board').innerHTML = '';
+
+  columns.forEach(colId => {
+    const count = cards.filter(c => c.column === colId).length;
+    const title = colId.charAt(0).toUpperCase() + colId.slice(1);
+
+    const colDiv = document.createElement('div');
+    colDiv.className = 'column';
+    colDiv.innerHTML = `
+      <div class="column-header">
+        <span>${title} <small>(${count})</small></span>
+        <span class="add-btn" onclick="openModal('${colId}')">+</span>
+      </div>
+      <div class="cards" id="${colId}">
+        <div class="drop-indicator" id="indicator-${colId}"></div>
+      </div>
+    `;
+    document.getElementById('board').appendChild(colDiv);
+
+    const container = document.getElementById(colId);
+    const indicator = document.getElementById(`indicator-${colId}`);
+
+    cards.filter(c => c.column === colId)
+      .sort((a,b) => a.order - b.order)
+      .forEach(card => {
+        const cardEl = document.createElement('div');
+        cardEl.className = 'card';
+        cardEl.draggable = true;
+        cardEl.dataset.id = card.id;
+
+        cardEl.innerHTML = `
+          <button class="menu-btn" onclick="toggleMenu(event, ${card.id})">⋯</button>
+          <div class="card-menu" id="menu-${card.id}">
+            <div class="menu-item danger" onclick="deleteCard(${card.id})">Delete</div>
+          </div>
+          <div class="card-title">${card.title}</div>
+          <div class="card-desc">${card.desc}</div>
+          <div class="card-meta">
+            <span>25D</span>
+            <span>No Due</span>
+            <span>0 Assignees</span>
+          </div>
+          <span class="badge ${card.status}">
+            ${card.status === 'completed' ? 'Completed' : 'Not Implemented'}
+          </span>
+          <div class="tag" style="color:${card.tag.includes('AI')?'#006644':'#7a2d9e'};">${card.tag}</div>
+        `;
+
+        cardEl.addEventListener('dragstart', () => {
+          draggedCard = card;
+          setTimeout(() => cardEl.classList.add('dragging'), 0);
+        });
+        cardEl.addEventListener('dragend', () => {
+          cardEl.classList.remove('dragging');
+          indicator.classList.remove('show');
+        });
+
+        container.appendChild(cardEl);
+      });
+
+    container.addEventListener('dragover', e => {
+      e.preventDefault();
+      const after = getDragAfterElement(container, e.clientY);
+      indicator.style.top = after ? 
+        `${after.getBoundingClientRect().top - container.getBoundingClientRect().top}px` : '100%';
+      indicator.classList.add('show');
+    });
+    container.addEventListener('dragleave', () => indicator.classList.remove('show'));
+    container.addEventListener('drop', e => handleDrop(e, container, colId));
+  });
+}
+
+function toggleMenu(e, cardId) {
+  e.stopPropagation();
+  document.querySelectorAll('.card-menu').forEach(m => m.classList.remove('show'));
+  document.getElementById(`menu-${cardId}`).classList.toggle('show');
+}
+
+document.addEventListener('click', () => {
+  document.querySelectorAll('.card-menu').forEach(m => m.classList.remove('show'));
+});
+
+function deleteCard(cardId) {
+  if (confirm('Delete this card?')) {
+    cards = cards.filter(c => c.id !== cardId);
+    localStorage.setItem('kanbanCards', JSON.stringify(cards));
+    render();
+  }
+}
+
+// Modal
+let currentColumn = null;
+function openModal(colId) {
+  currentColumn = colId;
+  document.getElementById('modal').classList.add('active');
+}
+function closeModal() {
+  document.getElementById('modal').classList.remove('active');
+}
+function saveCard() {
+  const title = document.getElementById('title').value.trim();
+  if (!title) return alert('Title required');
+
+  cards.push({
+    id: Date.now(),
+    column: currentColumn,
+    title,
+    desc: document.getElementById('description').value.trim(),
+    status: document.getElementById('status').value,
+    tag: document.getElementById('tag').value.trim() || '#New',
+    order: cards.filter(c => c.column === currentColumn).length
+  });
+  localStorage.setItem('kanbanCards', JSON.stringify(cards));
+  closeModal();
+  render();
+}
+
+// Drag helpers
+function getDragAfterElement(container, y) {
+  const els = [...container.querySelectorAll('.card:not(.dragging)')];
+  return els.reduce((closest, child) => {
+    const box = child.getBoundingClientRect();
+    const offset = y - box.top - box.height / 2;
+    if (offset < 0 && offset > closest.offset) return { offset, element: child };
+    return closest;
+  }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+
+function handleDrop(e, container, colId) {
+  e.preventDefault();
+  document.querySelectorAll('.drop-indicator').forEach(i => i.classList.remove('show'));
+  if (!draggedCard) return;
+
+  const afterElement = getDragAfterElement(container, e.clientY);
+  cards = cards.filter(c => c.id !== draggedCard.id);
+
+  let insertIndex = 0;
+  if (afterElement) {
+    const afterCard = cards.find(c => c.id == afterElement.dataset.id);
+    insertIndex = cards.filter(c => c.column === colId && c.order < afterCard.order).length;
+  } else {
+    insertIndex = cards.filter(c => c.column === colId).length;
+  }
+
+  draggedCard.column = colId;
+  const columnCards = cards.filter(c => c.column === colId);
+  columnCards.splice(insertIndex, 0, draggedCard);
+  cards = cards.filter(c => c.column !== colId);
+  columnCards.forEach((c, i) => { c.order = i; cards.push(c); });
+
+  localStorage.setItem('kanbanCards', JSON.stringify(cards));
+  render();
+}
+
+render();
+</script>
+</body>
+</html>
