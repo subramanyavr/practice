@@ -27,11 +27,123 @@
       background: #30363d;
       transform: translateY(-2px);
     }
+    .info {
+      margin: 20px 0 40px;
+      font-size: 14px;
+      color: #8b949e;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    button.reset {
+      margin-top: 30px;
+      padding: 10px 24px;
+      background: #c0392b;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button.reset:hover {
+      background: #a93226;
+    }
   </style>
 </head>
 <body>
+
   <h1>NetSuite Tools</h1>
+  
+  <div class="info">
+    Oracle Guided Learning (OGL) configuration is read from URL parameters or localStorage.<br><br>
+    Example:<br>
+    <code>?ogl_appid=Qv5A5sqwQoyUtxssbxHFag&amp;ogl_url=guidedlearning-minor.oraclecorp.com&amp;ogl_env_type=prod&amp;ogl_end_user=QA_User2303</code>
+  </div>
+
   <a href="flexUXmoc.html">Task Lists / AI Mode Help</a><br>
   <a href="kanban.html">Kanban Board</a>
+
+  <button class="reset" onclick="clearOglConfig()">Clear OGL Config & Reload</button>
+
+  <!-- Oracle Guided Learning - Configuration & Loader (persisted via localStorage) -->
+  <script>
+    // Helper: get param from URL → save to storage → or read from storage
+    function getOglParam(name, defaultValue = null) {
+      const urlParams = new URLSearchParams(window.location.search);
+      let value = urlParams.get(name);
+      
+      if (value !== null) {
+        localStorage.setItem(`ogl_${name}`, value);
+      } else {
+        value = localStorage.getItem(`ogl_${name}`);
+      }
+      
+      return value !== null ? value : defaultValue;
+    }
+
+    // Read configuration (URL has priority → then stored → then fallback)
+    const appId     = getOglParam('ogl_appid',    "evw1zYvfTtWJ3gRR8G2bug");
+    let   baseUrl   = getOglParam('ogl_url',      "guidedlearning.oracle.com");
+    const envType   = (getOglParam('ogl_env_type') || '').toLowerCase();
+    const endUser   = getOglParam('ogl_end_user');
+
+    // Clean base URL
+    baseUrl = baseUrl.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+
+    // Map environment
+    let envMode = null;
+    if (envType === 'dev' || envType === 'development' || envType === 'stage') {
+      envMode = 'dev';
+    } else if (envType === 'uat' || envType === 'test') {
+      envMode = 'uat';
+    }
+    // prod → leave unset (default)
+
+    // Initialize iridize queue
+    window.iridize = window.iridize || function(e, t, n) {
+      return iridize.api.call(e, t, n);
+    };
+    iridize.api = iridize.api || {
+      q: [],
+      call: function(e, t, n) { iridize.api.q.push({ method: e, data: t, callback: n }); }
+    };
+
+    iridize.appId = appId;
+    if (envMode) iridize.env = envMode;
+
+    // Load the OGL player script
+    (function() {
+      const script = document.createElement("script");
+      script.src = `https://${baseUrl}/player/latest/static/js/iridizeLoader.min.js`;
+      script.type = "text/javascript";
+      script.async = true;
+
+      script.onload = function() {
+        console.log("[OGL] Loader ready → appId:", appId, "env:", envMode || "prod", "user:", endUser || "(not set)");
+        
+        if (typeof iridize === 'function' && endUser) {
+          iridize("api.fields.set", {
+            user_id: endUser
+            // You can extend with more fields if available: role, email, region, etc.
+          }, function(success) {
+            console.log("[OGL] User fields set:", success);
+          });
+        }
+      };
+
+      (document.body || document.head).appendChild(script);
+    })();
+
+    // Debug output
+    console.log("[OGL Config]", { appId, baseUrl, envMode, endUser });
+
+    // Clear config helper
+    window.clearOglConfig = function() {
+      ['appid','url','env_type','end_user'].forEach(k => localStorage.removeItem(`ogl_${k}`));
+      alert("OGL configuration cleared.\nPage will reload.");
+      location.reload();
+    };
+  </script>
+
 </body>
 </html>
