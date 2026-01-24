@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -27,7 +28,7 @@
         .panel {
             width: 360px;
             height: 100vh;
-            background: var(--bg);
+            background: #000;
             padding: 16px;
             box-sizing: border-box;
             overflow-y: auto;
@@ -170,57 +171,49 @@
             <div class="tab active">What's new</div>
             <div class="tab">To-do list <span class="badge">2</span></div>
         </div>
-
         <div class="intro">
             <h2>Learn how NetSuite AI Mode works with these key experiences</h2>
             <p>Learn how to navigate through this new UI, so you can get the info you need to start working.</p>
         </div>
-
         <div id="dynamic-tasklists">
             <!-- Content will be rendered here -->
         </div>
-
         <div class="footer">
             <button class="reset-all-btn" onclick="resetAllTaskLists()">Reset All Progress</button>
         </div>
     </div>
-
     <script>
         let taskListsData = [];
-
         // Guide type icons (emoji – can be replaced with SVG/icons later)
         const guideTypeIcons = {
-            'TKL': '📋',      // Task List
-            'SRV': '📋',      // Survey
-            'TRC': '🔗',      // Trigger / Tour / Link
-            'LNK': '🔗',      // Link
-            'MSG': '💬',      // Message / Tip
-            'WAL': '🚶',      // Walkthrough
-            'TUT': '🎓',      // Tutorial
-            'VID': '🎥',      // Video
+            'TKL': '📋', // Task List
+            'SRV': '📋', // Survey
+            'TRC': '🔗', // Trigger / Tour / Link
+            'LNK': '🔗', // Link
+            'MSG': '💬', // Message / Tip
+            'WAL': '🚶', // Walkthrough
+            'TUT': '🎓', // Tutorial
+            'VID': '🎥', // Video
             'default': '⭐'
         };
-
         function getGuideIcon(type = 'default') {
             return guideTypeIcons[type.toUpperCase()] || guideTypeIcons.default;
         }
-
         function toggleTaskList(header, apiName, isOpening) {
             const content = header.nextElementSibling;
             content.classList.toggle('open');
             header.querySelector('.toggle').textContent = content.classList.contains('open') ? '▲' : '▼';
-
             if (typeof iridize === 'function') {
                 const eventName = isOpening ? 'flexTasklistOpened' : 'flexTasklistClosed';
                 iridize('api.guide.notifyHostEvent', { eventName, apiName });
             }
         }
-
-        function toggleGuideDescription(el) {
-            const desc = el.nextElementSibling;
+        function toggleGuideDescription(header) {
+            const desc = header.nextElementSibling;
             desc.classList.toggle('open');
+            const toggle = header.querySelector('.toggle');
+            toggle.textContent = desc.classList.contains('open') ? '▲' : '▼';
         }
-
         function launchGuide(taskListApiName, guideApiName) {
             if (typeof iridize === 'function') {
                 iridize('api.guide.startFlexTasklistGuide', {
@@ -232,20 +225,16 @@
                 console.warn("iridize not available");
             }
         }
-
         function getProgress(taskList) {
             const total = taskList.taskListItems?.length || 0;
             const done = taskList.taskListItems?.filter(g => g.completed)?.length || 0;
             return `${done}/${total}`;
         }
-
         function renderTaskLists(taskLists) {
             taskListsData = Array.isArray(taskLists) ? taskLists : [];
             const container = document.getElementById('dynamic-tasklists');
             container.innerHTML = '';
-
             const realTaskLists = taskListsData.filter(t => t.guideType === 'TKL' && t.apiName);
-
             if (realTaskLists.length === 0) {
                 container.innerHTML = `
                     <div class="completed-message">
@@ -255,76 +244,62 @@
                 `;
                 return;
             }
-
             realTaskLists.forEach((taskList, index) => {
                 const card = document.createElement('div');
                 card.className = 'card';
                 card.dataset.apiName = taskList.apiName;
-
                 const header = document.createElement('div');
                 header.className = 'card-header';
                 header.innerHTML = `
                     <span>
-                        ${getGuideIcon('TKL')} ${taskList.displayName || taskList.apiName}
+                        ${taskList.displayName || taskList.apiName}
                         <span class="progress">${getProgress(taskList)}</span>
                     </span>
                     <div style="display:flex; gap:12px; align-items:center;">
-                        <button class="reset-tasklist-btn"
-                            onclick="event.stopPropagation(); resetTaskList('${taskList.apiName}', this.closest('.card'))">
+                        <button class="reset-tasklist-btn" 
+                                onclick="event.stopPropagation(); resetTaskList('${taskList.apiName}', this.closest('.card'))">
                             Reset
                         </button>
                         <span class="toggle">${index === 0 ? '▲' : '▼'}</span>
                     </div>
                 `;
-
                 header.onclick = (e) => {
                     if (e.target.tagName === 'BUTTON') return;
                     const isOpening = !header.nextElementSibling.classList.contains('open');
                     toggleTaskList(header, taskList.apiName, isOpening);
                 };
-
                 const content = document.createElement('div');
                 content.className = 'card-content';
                 if (index === 0) content.classList.add('open');
-
                 content.innerHTML = `
                     <p>${taskList.description || 'No description available'}</p>
                     <ul class="task-list"></ul>
                 `;
-
                 const ul = content.querySelector('.task-list');
-
                 (taskList.taskListItems || []).forEach(guide => {
                     const li = document.createElement('li');
                     li.className = 'task-item';
-
-                    const icon = getGuideIcon(guide.guideType);
                     const statusClass = guide.completed ? 'completed' : 'pending';
                     const isLinkType = ['TRC','LNK','LINK'].includes((guide.guideType || '').toUpperCase());
-
                     let guideHTML = '';
-
                     if (isLinkType && guide.url) {
                         guideHTML = `
-                            <a href="${guide.url}" target="_blank" rel="noopener noreferrer"
+                            <a href="${guide.url}" target="_blank" rel="noopener noreferrer" 
                                style="color:var(--accent); text-decoration:none; display:flex; align-items:center; gap:10px; flex:1;">
-                                ${icon}
                                 <strong>${guide.displayName || guide.apiName}</strong>
                                 <span class="guide-type">[${guide.guideType}]</span>
                             </a>
                         `;
                     } else {
                         guideHTML = `
-                            <div style="display:flex; align-items:center; gap:10px; flex:1; cursor:pointer;"
-                                 onclick="handleGuideClick('${taskList.apiName}', '${guide.apiName}', this)">
+                            <div style="display:flex; align-items:center; gap:10px; flex:1; cursor:pointer;" 
+                                 onclick="launchGuide('${taskList.apiName}', '${guide.apiName}')">
                                 <div class="status-dot ${statusClass}"></div>
-                                ${icon}
                                 <strong>${guide.displayName || guide.apiName}</strong>
                                 <span class="guide-type">[${guide.guideType}]</span>
                             </div>
                         `;
                     }
-
                     li.innerHTML = `
                         <div class="guide-header">
                             ${guideHTML}
@@ -332,21 +307,21 @@
                         </div>
                         <div class="guide-desc">${guide.description || 'No description'}</div>
                     `;
-
                     ul.appendChild(li);
                 });
-
                 card.appendChild(header);
                 card.appendChild(content);
                 container.appendChild(card);
             });
+            // Add event listener for guide toggles
+            document.querySelectorAll('.guide-header .toggle').forEach(toggle => {
+                toggle.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const header = e.target.closest('.guide-header');
+                    toggleGuideDescription(header);
+                });
+            });
         }
-
-        function handleGuideClick(taskListApiName, guideApiName, el) {
-            toggleGuideDescription(el);
-            launchGuide(taskListApiName, guideApiName);
-        }
-
         function resetTaskList(apiName, cardElement) {
             if (typeof iridize !== 'function') {
                 alert("iridize not available – UI reset only");
@@ -361,7 +336,6 @@
                 }
             });
         }
-
         function resetUIForTaskList(cardElement) {
             cardElement.querySelectorAll('.status-dot').forEach(dot => {
                 dot.className = 'status-dot pending';
@@ -375,21 +349,17 @@
                 }
             }
         }
-
         function resetAllTaskLists() {
             if (taskListsData.length === 0) return;
             const apiNames = taskListsData
                 .filter(t => t.guideType === 'TKL' && t.apiName)
                 .map(t => t.apiName);
-
             if (apiNames.length === 0) return alert("No task lists to reset");
-
             if (typeof iridize !== 'function') {
                 alert("iridize not available – UI reset only");
                 document.querySelectorAll('.card').forEach(resetUIForTaskList);
                 return;
             }
-
             iridize('api.taskList.reset', { apiNames }, (success) => {
                 if (success === true) {
                     document.querySelectorAll('.card').forEach(resetUIForTaskList);
@@ -399,9 +369,8 @@
                 }
             });
         }
-
         // ────────────────────────────────────────────────
-        //  Load real data on every page load
+        // Load real data on every page load
         // ────────────────────────────────────────────────
         function loadFlexGuides() {
             if (typeof iridize !== 'function') {
@@ -409,7 +378,6 @@
                     '<div class="completed-message" style="color:#e74c3c;"><h3>iridize SDK not loaded</h3></div>';
                 return;
             }
-
             iridize("api.onReady", {}, () => {
                 console.log("iridize ready → fetching flex guides");
                 iridize("api.guide.getFlexGuides", {}, (data) => {
@@ -418,12 +386,10 @@
                 });
             });
         }
-
         // Start loading when page is ready
         window.addEventListener('load', loadFlexGuides);
-
         // ────────────────────────────────────────────────
-        //  OGL / iridize loader (your original part – kept as-is)
+        // OGL / iridize loader (your original part – kept as-is)
         // ────────────────────────────────────────────────
         function getOglParam(name, defaultValue = null) {
             const urlParams = new URLSearchParams(window.location.search);
@@ -431,23 +397,18 @@
             if (value !== null) localStorage.setItem(`ogl_${name}`, value);
             return value !== null ? value : (localStorage.getItem(`ogl_${name}`) || defaultValue);
         }
-
         const appId = getOglParam('ogl_appid', "evw1zYvfTtWJ3gRR8G2bug");
         let baseUrl = getOglParam('ogl_url', "guidedlearning.oracle.com");
         const envType = (getOglParam('ogl_env_type') || '').toLowerCase();
         const endUser = getOglParam('ogl_end_user');
-
         baseUrl = baseUrl.replace(/^https?:\/\//, '').replace(/\/+$/, '');
-
         let envMode = null;
         if (envType === 'dev' || envType === 'development' || envType === 'stage') envMode = 'dev';
         else if (envType === 'uat' || envType === 'test') envMode = 'uat';
-
         window.iridize = window.iridize || function(e,t,n){return iridize.api.call(e,t,n);};
         iridize.api = iridize.api || {q:[],call:function(e,t,n){iridize.api.q.push({method:e,data:t,callback:n});}};
         iridize.appId = appId;
         if (envMode) iridize.env = envMode;
-
         (function(){
             var s = document.createElement("script");
             s.src = `https://${baseUrl}/player/latest/static/js/iridizeLoader.min.js`;
@@ -466,3 +427,4 @@
     </script>
 </body>
 </html>
+```
