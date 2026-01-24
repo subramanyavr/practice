@@ -60,7 +60,7 @@
             margin-bottom: 24px;
         }
         .intro h2 { font-size: 20px; margin: 0 0 8px; line-height: 1.3; }
-        .intro p  { font-size: 14px; color: var(--text-light); margin: 0; }
+        .intro p { font-size: 14px; color: var(--text-light); margin: 0; }
         .card {
             background: var(--card-bg);
             border-radius: 8px;
@@ -103,10 +103,9 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            cursor: pointer;
             padding: 8px 0;
         }
-        .guide-header:hover { color: white; background: rgba(255,255,255,0.05); border-radius: 4px; padding: 8px; margin: -8px; }
+        .guide-header:hover { color: white; background: rgba(255,255,255,0.05); border-radius: 4px; padding: 8px; margin: -8px -8px; }
         .status-dot {
             width: 12px;
             height: 12px;
@@ -114,7 +113,7 @@
             flex-shrink: 0;
         }
         .completed { background: var(--green); }
-        .pending   { background: var(--yellow); }
+        .pending { background: var(--yellow); }
         .guide-type {
             color: #ffcc00;
             font-weight: bold;
@@ -136,11 +135,11 @@
             font-size: 13px;
             color: #b0c4de;
             margin-top: 6px;
-            padding-left: 22px;
+            padding-left: 32px;
         }
         .guide-desc.open { display: block; }
         .footer {
-            margin-top: 24px;
+            margin-top: 32px;
             text-align: center;
         }
         .reset-all-btn {
@@ -153,6 +152,15 @@
             font-size: 14px;
         }
         .reset-all-btn:hover { background: #c0392b; }
+        .completed-message {
+            text-align: center;
+            padding: 60px 20px;
+            color: #aaa;
+        }
+        .completed-message h3 {
+            margin: 0 0 12px;
+            color: var(--green);
+        }
     </style>
 </head>
 <body>
@@ -168,7 +176,9 @@
             <p>Learn how to navigate through this new UI, so you can get the info you need to start working.</p>
         </div>
 
-        <div id="dynamic-tasklists"></div>
+        <div id="dynamic-tasklists">
+            <!-- Content will be rendered here -->
+        </div>
 
         <div class="footer">
             <button class="reset-all-btn" onclick="resetAllTaskLists()">Reset All Progress</button>
@@ -178,11 +188,27 @@
     <script>
         let taskListsData = [];
 
+        // Guide type icons (emoji – can be replaced with SVG/icons later)
+        const guideTypeIcons = {
+            'TKL': '📋',      // Task List
+            'SRV': '📋',      // Survey
+            'TRC': '🔗',      // Trigger / Tour / Link
+            'LNK': '🔗',      // Link
+            'MSG': '💬',      // Message / Tip
+            'WAL': '🚶',      // Walkthrough
+            'TUT': '🎓',      // Tutorial
+            'VID': '🎥',      // Video
+            'default': '⭐'
+        };
+
+        function getGuideIcon(type = 'default') {
+            return guideTypeIcons[type.toUpperCase()] || guideTypeIcons.default;
+        }
+
         function toggleTaskList(header, apiName, isOpening) {
             const content = header.nextElementSibling;
             content.classList.toggle('open');
-            const toggleIcon = header.querySelector('.toggle');
-            toggleIcon.textContent = content.classList.contains('open') ? '▲' : '▼';
+            header.querySelector('.toggle').textContent = content.classList.contains('open') ? '▲' : '▼';
 
             if (typeof iridize === 'function') {
                 const eventName = isOpening ? 'flexTasklistOpened' : 'flexTasklistClosed';
@@ -198,96 +224,39 @@
         function launchGuide(taskListApiName, guideApiName) {
             if (typeof iridize === 'function') {
                 iridize('api.guide.startFlexTasklistGuide', {
-                    taskListApiName: taskListApiName,
+                    taskListApiName,
                     launchedGuideApiName: guideApiName
                 });
-                console.log(`Launching guide: ${guideApiName} from tasklist: ${taskListApiName}`);
+                console.log(`Launching: ${guideApiName} in tasklist ${taskListApiName}`);
             } else {
-                console.warn("iridize not available - cannot launch guide");
-                alert("Guide launch simulated (iridize not detected)");
+                console.warn("iridize not available");
             }
         }
 
         function getProgress(taskList) {
             const total = taskList.taskListItems?.length || 0;
-            const done = taskList.taskListItems?.filter(g => g.completed).length || 0;
+            const done = taskList.taskListItems?.filter(g => g.completed)?.length || 0;
             return `${done}/${total}`;
         }
 
-        function updateProgressBadge(card, taskList) {
-            const badge = card.querySelector('.progress');
-            if (badge) badge.textContent = getProgress(taskList);
-        }
-
-        function resetTaskList(apiName, cardElement) {
-            if (typeof iridize !== 'function') {
-                alert("iridize not available – UI reset only");
-                resetUIForTaskList(cardElement);
-                return;
-            }
-
-            iridize('api.taskList.reset', { apiNames: [apiName] }, (success) => {
-                if (success === true) {
-                    resetUIForTaskList(cardElement);
-                } else {
-                    alert("Reset failed");
-                }
-            });
-        }
-
-        function resetUIForTaskList(cardElement) {
-            const dots = cardElement.querySelectorAll('.status-dot');
-            dots.forEach(dot => dot.className = 'status-dot pending');
-
-            const card = cardElement.closest('.card');
-            if (card) {
-                const taskList = taskListsData.find(t => t.apiName === card.dataset.apiName);
-                if (taskList) {
-                    taskList.taskListItems.forEach(g => g.completed = false);
-                    updateProgressBadge(card, taskList);
-                }
-            }
-        }
-
-        function resetAllTaskLists() {
-            if (taskListsData.length === 0) return;
-
-            const allApiNames = taskListsData
-                .filter(t => t.guideType === 'TKL' && t.apiName)
-                .map(t => t.apiName);
-
-            if (allApiNames.length === 0) return alert("No task lists to reset");
-
-            if (typeof iridize !== 'function') {
-                alert("iridize not available – resetting UI only");
-                document.querySelectorAll('.card').forEach(card => resetUIForTaskList(card));
-                return;
-            }
-
-            iridize('api.taskList.reset', { apiNames: allApiNames }, (success) => {
-                if (success === true) {
-                    document.querySelectorAll('.card').forEach(card => resetUIForTaskList(card));
-                    alert("All task lists reset successfully");
-                } else {
-                    alert("Bulk reset failed");
-                }
-            });
-        }
-
         function renderTaskLists(taskLists) {
-            taskListsData = taskLists || [];
-
+            taskListsData = Array.isArray(taskLists) ? taskLists : [];
             const container = document.getElementById('dynamic-tasklists');
             container.innerHTML = '';
 
-            if (taskListsData.length === 0) {
-                container.innerHTML = '<p style="text-align:center;color:#aaa;">No task lists found</p>';
+            const realTaskLists = taskListsData.filter(t => t.guideType === 'TKL' && t.apiName);
+
+            if (realTaskLists.length === 0) {
+                container.innerHTML = `
+                    <div class="completed-message">
+                        <h3>All tasks completed 🎉</h3>
+                        <p>You've finished everything available right now.</p>
+                    </div>
+                `;
                 return;
             }
 
-            taskListsData.forEach((taskList, index) => {
-                if (taskList.guideType !== "TKL" || !taskList.apiName) return;
-
+            realTaskLists.forEach((taskList, index) => {
                 const card = document.createElement('div');
                 card.className = 'card';
                 card.dataset.apiName = taskList.apiName;
@@ -296,11 +265,11 @@
                 header.className = 'card-header';
                 header.innerHTML = `
                     <span>
-                        ${taskList.displayName}
+                        ${getGuideIcon('TKL')} ${taskList.displayName || taskList.apiName}
                         <span class="progress">${getProgress(taskList)}</span>
                     </span>
-                    <div style="display:flex; gap:10px; align-items:center;">
-                        <button class="reset-tasklist-btn" 
+                    <div style="display:flex; gap:12px; align-items:center;">
+                        <button class="reset-tasklist-btn"
                             onclick="event.stopPropagation(); resetTaskList('${taskList.apiName}', this.closest('.card'))">
                             Reset
                         </button>
@@ -319,7 +288,7 @@
                 if (index === 0) content.classList.add('open');
 
                 content.innerHTML = `
-                    <p>${taskList.description || 'No description'}</p>
+                    <p>${taskList.description || 'No description available'}</p>
                     <ul class="task-list"></ul>
                 `;
 
@@ -329,18 +298,39 @@
                     const li = document.createElement('li');
                     li.className = 'task-item';
 
+                    const icon = getGuideIcon(guide.guideType);
                     const statusClass = guide.completed ? 'completed' : 'pending';
+                    const isLinkType = ['TRC','LNK','LINK'].includes((guide.guideType || '').toUpperCase());
 
-                    li.innerHTML = `
-                        <div class="guide-header" onclick="handleGuideClick('${taskList.apiName}', '${guide.apiName}', this)">
-                            <div style="display:flex; align-items:center; gap:10px; flex:1;">
+                    let guideHTML = '';
+
+                    if (isLinkType && guide.url) {
+                        guideHTML = `
+                            <a href="${guide.url}" target="_blank" rel="noopener noreferrer"
+                               style="color:var(--accent); text-decoration:none; display:flex; align-items:center; gap:10px; flex:1;">
+                                ${icon}
+                                <strong>${guide.displayName || guide.apiName}</strong>
+                                <span class="guide-type">[${guide.guideType}]</span>
+                            </a>
+                        `;
+                    } else {
+                        guideHTML = `
+                            <div style="display:flex; align-items:center; gap:10px; flex:1; cursor:pointer;"
+                                 onclick="handleGuideClick('${taskList.apiName}', '${guide.apiName}', this)">
                                 <div class="status-dot ${statusClass}"></div>
-                                <strong>${guide.displayName}</strong>
+                                ${icon}
+                                <strong>${guide.displayName || guide.apiName}</strong>
                                 <span class="guide-type">[${guide.guideType}]</span>
                             </div>
+                        `;
+                    }
+
+                    li.innerHTML = `
+                        <div class="guide-header">
+                            ${guideHTML}
                             <span class="toggle" style="font-size:16px;">▼</span>
                         </div>
-                        <div class="guide-desc">${guide.description || 'No description available'}</div>
+                        <div class="guide-desc">${guide.description || 'No description'}</div>
                     `;
 
                     ul.appendChild(li);
@@ -352,101 +342,127 @@
             });
         }
 
-        // New handler: Launch guide + toggle description
         function handleGuideClick(taskListApiName, guideApiName, el) {
-            // Toggle description visibility
             toggleGuideDescription(el);
-
-            // Launch the actual guide
             launchGuide(taskListApiName, guideApiName);
         }
 
-        // ────────────────────────────────────────────────
-        // Mock data for standalone testing
-        // ────────────────────────────────────────────────
-        const mockData = [
-            {
-                apiName: "qy1yv5tr",
-                completed: false,
-                description: "Test Tasklist with various guides",
-                displayName: "ABC help panel",
-                guideType: "TKL",
-                taskListItems: [
-                    { apiName: "alchqrgy", completed: false, description: "Survey guide desc", displayName: "GL-34135_SurveyGuide", guideType: "SRV" },
-                    { apiName: "d72px1e6", completed: true,  description: "Link guide desc", displayName: "GL-34135_LinkGuide", guideType: "TRC" },
-                    { apiName: "ykj3mbzn", completed: false, description: "Message guide desc", displayName: "GL-34135_MessageGuide", guideType: "MSG" },
-                    { apiName: "zryeoije", completed: true,  description: "Process guide desc", displayName: "GL-34135_ProcessGuide", guideType: "WAL" }
-                ]
-            },
-            {
-                apiName: "rbbx0xgj",
-                completed: false,
-                description: "Another test tasklist",
-                displayName: "XYZ help panel",
-                guideType: "TKL",
-                taskListItems: [
-                    { apiName: "testguide1", completed: false, description: "Desc 1", displayName: "Guide One", guideType: "SRV" },
-                    { apiName: "testguide2", completed: false, description: "Desc 2", displayName: "Guide Two", guideType: "TRC" }
-                ]
+        function resetTaskList(apiName, cardElement) {
+            if (typeof iridize !== 'function') {
+                alert("iridize not available – UI reset only");
+                resetUIForTaskList(cardElement);
+                return;
             }
-        ];
+            iridize('api.taskList.reset', { apiNames: [apiName] }, (success) => {
+                if (success === true) {
+                    resetUIForTaskList(cardElement);
+                } else {
+                    alert("Reset failed");
+                }
+            });
+        }
 
-        renderTaskLists(mockData);
+        function resetUIForTaskList(cardElement) {
+            cardElement.querySelectorAll('.status-dot').forEach(dot => {
+                dot.className = 'status-dot pending';
+            });
+            const card = cardElement.closest('.card');
+            if (card) {
+                const taskList = taskListsData.find(t => t.apiName === card.dataset.apiName);
+                if (taskList) {
+                    taskList.taskListItems.forEach(g => g.completed = false);
+                    card.querySelector('.progress').textContent = getProgress(taskList);
+                }
+            }
+        }
+
+        function resetAllTaskLists() {
+            if (taskListsData.length === 0) return;
+            const apiNames = taskListsData
+                .filter(t => t.guideType === 'TKL' && t.apiName)
+                .map(t => t.apiName);
+
+            if (apiNames.length === 0) return alert("No task lists to reset");
+
+            if (typeof iridize !== 'function') {
+                alert("iridize not available – UI reset only");
+                document.querySelectorAll('.card').forEach(resetUIForTaskList);
+                return;
+            }
+
+            iridize('api.taskList.reset', { apiNames }, (success) => {
+                if (success === true) {
+                    document.querySelectorAll('.card').forEach(resetUIForTaskList);
+                    alert("All task lists reset");
+                } else {
+                    alert("Bulk reset failed");
+                }
+            });
+        }
 
         // ────────────────────────────────────────────────
-        // REAL IRIDIZE INTEGRATION (uncomment in NetSuite)
+        //  Load real data on every page load
         // ────────────────────────────────────────────────
-        /*
-        if (typeof iridize === 'function') {
-            iridize("api.onReady", {}, function() {
-                console.log("iridize ready");
+        function loadFlexGuides() {
+            if (typeof iridize !== 'function') {
+                document.getElementById('dynamic-tasklists').innerHTML =
+                    '<div class="completed-message" style="color:#e74c3c;"><h3>iridize SDK not loaded</h3></div>';
+                return;
+            }
 
-                iridize("api.guide.getFlexGuides", {}, function(data) {
-                    console.log("Flex Guides:", data);
+            iridize("api.onReady", {}, () => {
+                console.log("iridize ready → fetching flex guides");
+                iridize("api.guide.getFlexGuides", {}, (data) => {
+                    console.log("getFlexGuides →", data);
                     renderTaskLists(data);
                 });
             });
         }
-        */
+
+        // Start loading when page is ready
+        window.addEventListener('load', loadFlexGuides);
+
+        // ────────────────────────────────────────────────
+        //  OGL / iridize loader (your original part – kept as-is)
+        // ────────────────────────────────────────────────
         function getOglParam(name, defaultValue = null) {
-      const urlParams = new URLSearchParams(window.location.search);
-      let value = urlParams.get(name);
-      if (value !== null) localStorage.setItem(`ogl_${name}`, value);
-      return value !== null ? value : (localStorage.getItem(`ogl_${name}`) || defaultValue);
-    }
-
-    const appId     = getOglParam('ogl_appid',    "evw1zYvfTtWJ3gRR8G2bug");
-    let   baseUrl   = getOglParam('ogl_url',      "guidedlearning.oracle.com");
-    const envType   = (getOglParam('ogl_env_type') || '').toLowerCase();
-    const endUser   = getOglParam('ogl_end_user');
-
-    baseUrl = baseUrl.replace(/^https?:\/\//, '').replace(/\/+$/, '');
-
-    let envMode = null;
-    if (envType === 'dev' || envType === 'development' || envType === 'stage') envMode = 'dev';
-    else if (envType === 'uat' || envType === 'test') envMode = 'uat';
-
-    window.iridize = window.iridize || function(e,t,n){return iridize.api.call(e,t,n);};
-    iridize.api = iridize.api || {q:[],call:function(e,t,n){iridize.api.q.push({method:e,data:t,callback:n});}};
-
-    iridize.appId = appId;
-    if (envMode) iridize.env = envMode;
-
-    (function(){
-      var s = document.createElement("script");
-      s.src = `https://${baseUrl}/player/latest/static/js/iridizeLoader.min.js`;
-      s.type = "text/javascript";
-      s.async = true;
-      
-      s.onload = function() {
-        console.log("[flexUXmoc] OGL ready → user:", endUser || "(not set)");
-        if (typeof iridize === 'function' && endUser) {
-          iridize("api.fields.set", { user_id: endUser });
+            const urlParams = new URLSearchParams(window.location.search);
+            let value = urlParams.get(name);
+            if (value !== null) localStorage.setItem(`ogl_${name}`, value);
+            return value !== null ? value : (localStorage.getItem(`ogl_${name}`) || defaultValue);
         }
-      };
-      
-      (document.body || document.head).appendChild(s);
-    })();
+
+        const appId = getOglParam('ogl_appid', "evw1zYvfTtWJ3gRR8G2bug");
+        let baseUrl = getOglParam('ogl_url', "guidedlearning.oracle.com");
+        const envType = (getOglParam('ogl_env_type') || '').toLowerCase();
+        const endUser = getOglParam('ogl_end_user');
+
+        baseUrl = baseUrl.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+
+        let envMode = null;
+        if (envType === 'dev' || envType === 'development' || envType === 'stage') envMode = 'dev';
+        else if (envType === 'uat' || envType === 'test') envMode = 'uat';
+
+        window.iridize = window.iridize || function(e,t,n){return iridize.api.call(e,t,n);};
+        iridize.api = iridize.api || {q:[],call:function(e,t,n){iridize.api.q.push({method:e,data:t,callback:n});}};
+        iridize.appId = appId;
+        if (envMode) iridize.env = envMode;
+
+        (function(){
+            var s = document.createElement("script");
+            s.src = `https://${baseUrl}/player/latest/static/js/iridizeLoader.min.js`;
+            s.type = "text/javascript";
+            s.async = true;
+            s.onload = function() {
+                console.log("[flexUX] OGL loaded → user:", endUser || "(not set)");
+                if (typeof iridize === 'function' && endUser) {
+                    iridize("api.fields.set", { user_id: endUser });
+                }
+                // Try to load guides again after loader is ready
+                setTimeout(loadFlexGuides, 800);
+            };
+            (document.body || document.head).appendChild(s);
+        })();
     </script>
 </body>
 </html>
