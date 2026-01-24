@@ -332,6 +332,45 @@ function handleDrop(e, container, colId) {
 }
 
 render();
+  function getOglParam(name, defaultValue = null) {
+      const urlParams = new URLSearchParams(window.location.search);
+      let value = urlParams.get(name);
+      if (value !== null) localStorage.setItem(`ogl_${name}`, value);
+      return value !== null ? value : (localStorage.getItem(`ogl_${name}`) || defaultValue);
+    }
+
+    const appId     = getOglParam('ogl_appid',    "evw1zYvfTtWJ3gRR8G2bug");
+    let   baseUrl   = getOglParam('ogl_url',      "guidedlearning.oracle.com");
+    const envType   = (getOglParam('ogl_env_type') || '').toLowerCase();
+    const endUser   = getOglParam('ogl_end_user');
+
+    baseUrl = baseUrl.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+
+    let envMode = null;
+    if (envType === 'dev' || envType === 'development' || envType === 'stage') envMode = 'dev';
+    else if (envType === 'uat' || envType === 'test') envMode = 'uat';
+
+    window.iridize = window.iridize || function(e,t,n){return iridize.api.call(e,t,n);};
+    iridize.api = iridize.api || {q:[],call:function(e,t,n){iridize.api.q.push({method:e,data:t,callback:n});}};
+
+    iridize.appId = appId;
+    if (envMode) iridize.env = envMode;
+
+    (function(){
+      var s = document.createElement("script");
+      s.src = `https://${baseUrl}/player/latest/static/js/iridizeLoader.min.js`;
+      s.type = "text/javascript";
+      s.async = true;
+      
+      s.onload = function() {
+        console.log("[kanban] OGL ready → user:", endUser || "(not set)");
+        if (typeof iridize === 'function' && endUser) {
+          iridize("api.fields.set", { user_id: endUser });
+        }
+      };
+      
+      (document.body || document.head).appendChild(s);
+    })();
 </script>
 </body>
 </html>
