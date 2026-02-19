@@ -376,12 +376,24 @@
                     '<div class="completed-message" style="color:#e74c3c;"><h3>iridize SDK not loaded</h3></div>';
                 return;
             }
-            iridize("api.onReady", {}, () => {
-                console.log("iridize ready → fetching flex guides");
+
+            const render = () => {
                 iridize("api.guide.getFlexGuides", {}, (data) => {
                     console.log("getFlexGuides →", data);
                     renderTaskLists(data);
                 });
+            }
+            iridize("api.onReady", {}, () => {
+                console.log("iridize ready → fetching flex guides");
+                iridize('api.guide.onGuideEnded', {}, (event) => {
+                    console.log(event)
+                    render()
+                });
+                iridize('api.taskList.onReset', {}, (event) => {
+                    console.log(event)
+                    render()
+                });
+                render();
             });
         }
         // Start loading when page is ready
@@ -397,6 +409,7 @@
         }
         const appId = getOglParam('ogl_appid', "evw1zYvfTtWJ3gRR8G2bug");
         let baseUrl = getOglParam('ogl_url', "guidedlearning.oracle.com");
+
         const envType = (getOglParam('ogl_env_type') || '').toLowerCase();
         const endUser = getOglParam('ogl_end_user');
         baseUrl = baseUrl.replace(/^https?:\/\//, '').replace(/\/+$/, '');
@@ -425,4 +438,3 @@
     </script>
 </body>
 </html>
-```
