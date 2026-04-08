@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Form Field Testing Page</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --surface-2: #0b1220;
+      --text: #e2e8f0;
+      --text-light: #94a3b8;
+      --accent: #60a5fa;
+      --border: #334155;
+      --good: #22c55e;
+      --bad: #ef4444;
+      --warn: #facc15;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: linear-gradient(180deg, #0f172a 0%, #0b1220 100%);
+      color: var(--text);
+      line-height: 1.55;
+      padding: 24px;
+    }
+
+    .container {
+      max-width: 1180px;
+      margin: 0 auto;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--accent);
+      text-decoration: none;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: rgba(30,41,59,0.55);
+    }
+
+    .hero {
+      background: rgba(30,41,59,0.76);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 22px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.22);
+      margin-bottom: 20px;
+    }
+
+    .hero h1 {
+      margin: 0 0 8px;
+      font-size: 2rem;
+    }
+
+    .hero p {
+      margin: 0;
+      color: var(--text-light);
+      max-width: 84ch;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .card {
+      background: rgba(30,41,59,0.76);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.18);
+    }
+
+    .card h2 {
+      margin: 0 0 14px;
+      font-size: 1.2rem;
+    }
+
+    form {
+      display: grid;
+      gap: 14px;
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+    }
+
+    label {
+      font-size: 0.95rem;
+      color: #cbd5e1;
+      font-weight: 600;
+    }
+
+    .hint {
+      font-size: 0.84rem;
+      color: var(--text-light);
+    }
+
+    input, select, textarea, button {
+      font: inherit;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      background: var(--surface-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      outline: none;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(96,165,250,0.2);
+    }
+
+    input:invalid.touched,
+    textarea:invalid.touched,
+    select:invalid.touched {
+      border-color: var(--bad);
+    }
+
+    .inline {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .inline label {
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text);
+    }
+
+    .inline input[type="checkbox"],
+    .inline input[type="radio"] {
+      width: auto;
+      accent-color: var(--accent);
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+
+    button {
+      border: none;
+      border-radius: 12px;
+      padding: 12px 16px;
+      cursor: pointer;
+      font-weight: 700;
+      transition: transform 0.15s ease, opacity 0.15s ease, background 0.15s ease;
+    }
+
+    button:hover { transform: translateY(-1px); }
+
+    .primary {
+      background: var(--accent);
+      color: #08101f;
+    }
+
+    .secondary {
+      background: #334155;
+      color: var(--text);
+    }
+
+    .danger {
+      background: #7f1d1d;
+      color: #fee2e2;
+    }
+
+    .summary {
+      display: grid;
+      gap: 12px;
+    }
+
+    .summary-item {
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .summary-item .label {
+      color: var(--text-light);
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 4px;
+    }
+
+    .summary-item .value {
+      font-size: 1rem;
+      word-break: break-word;
+    }
+
+    .status {
+      margin-top: 10px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      color: var(--text-light);
+      background: rgba(15,23,42,0.8);
+    }
+
+    .status.good { border-color: rgba(34,197,94,0.45); color: #bbf7d0; }
+    .status.bad { border-color: rgba(239,68,68,0.45); color: #fecaca; }
+
+    .field-span-2 {
+      grid-column: span 2;
+    }
+
+    .mini-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      overflow: hidden;
+      border-radius: 12px;
+    }
+
+    .mini-table th, .mini-table td {
+      border-bottom: 1px solid var(--border);
+      padding: 10px 12px;
+      text-align: left;
+      vertical-align: top;
+      font-size: 0.93rem;
+    }
+
+    .mini-table th {
+      color: #cbd5e1;
+      background: rgba(15, 23, 42, 0.75);
+      width: 38%;
+    }
+
+    .tag {
+      display: inline-block;
+      background: rgba(96,165,250,0.12);
+      color: #bfdbfe;
+      border: 1px solid rgba(96,165,250,0.3);
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 0.8rem;
+      margin-right: 8px;
+      margin-bottom: 8px;
+    }
+
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+      .field-grid { grid-template-columns: 1fr; }
+      .field-span-2 { grid-column: span 1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="topbar">
+      <a class="back-link" href="index.html">← Back to index</a>
+      <!-- <span class="tag">Form fields</span>
+      <span class="tag">Validation</span>
+      <span class="tag">Input states</span> -->
+    </div>
+
+    <!-- <section class="hero">
+      <h1>Form Field Testing Page</h1>
+      <p>
+        This page is meant for QA of common input interactions: required fields, validation,
+        focus states, keyboard entry, select controls, checkbox/radio groups, and summary rendering.
+      </p>
+    </section> -->
+
+    <div class="grid">
+      <section class="card">
+        <h2>Interactive form</h2>
+
+        <form id="qaForm" novalidate>
+          <div class="field-grid">
+            <div class="field">
+              <label for="fullName">Full name *</label>
+              <input id="fullName" name="fullName" type="text" placeholder="Enter full name" required minlength="3" />
+              <span class="hint">Required. Minimum 3 characters.</span>
+            </div>
+
+            <div class="field">
+              <label for="email">Email *</label>
+              <input id="email" name="email" type="email" placeholder="name@example.com" required />
+              <span class="hint">Must be a valid email address.</span>
+            </div>
+
+            <div class="field">
+              <label for="phone">Phone</label>
+              <input id="phone" name="phone" type="tel" placeholder="+1 555 0100" />
+            </div>
+
+            <div class="field">
+              <label for="age">Age</label>
+              <input id="age" name="age" type="number" min="18" max="99" step="1" placeholder="18-99" />
+            </div>
+
+            <div class="field">
+              <label for="dob">Date of birth</label>
+              <input id="dob" name="dob" type="date" />
+            </div>
+
+            <div class="field">
+              <label for="dept">Department *</label>
+              <select id="dept" name="dept" required>
+                <option value="">Select a department</option>
+                <option>QA</option>
+                <option>Engineering</option>
+                <option>Support</option>
+                <option>Product</option>
+              </select>
+            </div>
+
+            <div class="field field-span-2">
+              <label for="role">Role suggestion</label>
+              <input id="role" name="role" list="roleList" placeholder="Type or select a role" />
+              <datalist id="roleList">
+                <option value="QA Engineer"></option>
+                <option value="Automation Engineer"></option>
+                <option value="Test Analyst"></option>
+                <option value="Developer"></option>
+                <option value="Product Manager"></option>
+              </datalist>
+            </div>
+
+            <div class="field field-span-2">
+              <label for="notes">Notes</label>
+              <textarea id="notes" name="notes" rows="4" maxlength="250" placeholder="Add context, test cases, or defects"></textarea>
+              <span class="hint">Max 250 characters.</span>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Preferred contact method</label>
+            <div class="inline">
+              <label><input type="radio" name="contact" value="email" checked> Email</label>
+              <label><input type="radio" name="contact" value="phone"> Phone</label>
+              <label><input type="radio" name="contact" value="slack"> Slack</label>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Options</label>
+            <div class="inline">
+              <label><input type="checkbox" id="notify" checked> Enable notifications</label>
+              <label><input type="checkbox" id="terms"> Accept terms *</label>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button type="button" onclick="saveForm()">Save</button>
+            <button class="secondary" type="button" id="fillBtn">Auto fill sample data</button>
+            <button class="danger" type="reset">Reset</button>
+          </div>
+
+          <div id="status" class="status">Ready for input. Submit the form to run validation.</div>
+        </form>
+      </section>
+
+      <aside class="card">
+        <h2>Live field summary</h2>
+        <div class="summary">
+          <div class="summary-item"><div class="label">Name</div><div class="value" id="sumName">—</div></div>
+          <div class="summary-item"><div class="label">Email</div><div class="value" id="sumEmail">—</div></div>
+          <div class="summary-item"><div class="label">Department</div><div class="value" id="sumDept">—</div></div>
+          <div class="summary-item"><div class="label">Contact method</div><div class="value" id="sumContact">—</div></div>
+          <div class="summary-item"><div class="label">Consent</div><div class="value" id="sumTerms">—</div></div>
+          <div class="summary-item"><div class="label">Notes length</div><div class="value" id="sumNotes">0 / 250</div></div>
+        </div>
+
+        <!-- <table class="mini-table" aria-label="Form field checklist">
+          <tr><th>What to test</th><td>Required states, error messaging, tab order, and submit behavior.</td></tr>
+          <tr><th>Keyboard checks</th><td>Tab navigation, arrow selection on radio/select, enter key submit.</td></tr>
+          <tr><th>Responsive checks</th><td>Two-column layout collapses to one column below 900px.</td></tr>
+          <tr><th>Data checks</th><td>Type mismatches, max length, min/max range, and empty selections.</td></tr>
+        </table> -->
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('qaForm');
+    const statusEl = document.getElementById('status');
+
+    const fields = {
+      fullName: document.getElementById('fullName'),
+      email: document.getElementById('email'),
+      dept: document.getElementById('dept'),
+      notes: document.getElementById('notes'),
+      terms: document.getElementById('terms'),
+      notify: document.getElementById('notify'),
+      role: document.getElementById('role'),
+      phone: document.getElementById('phone'),
+      age: document.getElementById('age'),
+      dob: document.getElementById('dob'),
+    };
+
+    const summary = {
+      name: document.getElementById('sumName'),
+      email: document.getElementById('sumEmail'),
+      dept: document.getElementById('sumDept'),
+      contact: document.getElementById('sumContact'),
+      terms: document.getElementById('sumTerms'),
+      notes: document.getElementById('sumNotes'),
+    };
+
+    function getContactMethod() {
+      const selected = form.querySelector('input[name="contact"]:checked');
+      return selected ? selected.value : '—';
+    }
+
+    function updateSummary() {
+      summary.name.textContent = fields.fullName.value || '—';
+      summary.email.textContent = fields.email.value || '—';
+      summary.dept.textContent = fields.dept.value || '—';
+      summary.contact.textContent = getContactMethod();
+      summary.terms.textContent = fields.terms.checked ? 'Accepted' : 'Not accepted';
+      summary.notes.textContent = `${fields.notes.value.length} / 250`;
+    }
+
+    function markTouched() {
+      [...form.querySelectorAll('input, select, textarea')].forEach(el => el.classList.add('touched'));
+    }
+
+    function setStatus(message, type = '') {
+      statusEl.className = `status ${type}`.trim();
+      statusEl.textContent = message;
+    }
+
+    function validateForm() {
+      markTouched();
+      const allValid = form.checkValidity();
+      if (!fields.terms.checked) {
+        setStatus('Please accept the terms checkbox before submitting.', 'bad');
+        return false;
+      }
+      if (!allValid) {
+        setStatus('Some fields are invalid. Review required and constrained fields.', 'bad');
+        return false;
+      }
+      setStatus('Form looks valid. All required controls passed client-side checks.', 'good');
+      return true;
+    }
+
+    form.addEventListener('input', updateSummary);
+    form.addEventListener('change', updateSummary);
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      validateForm();
+    });
+
+    form.addEventListener('reset', () => {
+      setTimeout(() => {
+        [...form.querySelectorAll('input, select, textarea')].forEach(el => el.classList.remove('touched'));
+        setStatus('Form reset. Ready for input.');
+        updateSummary();
+      }, 0);
+    });
+
+    document.getElementById('fillBtn').addEventListener('click', () => {
+      fields.fullName.value = 'Alex Tester';
+      fields.email.value = 'alex.tester@example.com';
+      fields.phone.value = '+1 555 0100';
+      fields.age.value = 29;
+      fields.dob.value = '1996-05-12';
+      fields.dept.value = 'QA';
+      fields.role.value = 'QA Engineer';
+      fields.notes.value = 'Sample record for field validation and UI state testing.';
+      fields.terms.checked = true;
+      fields.notify.checked = true;
+      const radio = form.querySelector('input[name="contact"][value="email"]');
+      if (radio) radio.checked = true;
+      updateSummary();
+      setStatus('Sample data filled. Submit to run validation.', '');
+    });
+
+    updateSummary();
+  </script>
+
+  <!-- Oracle Guided Learning - Configuration & Loader -->
+  <script>
+    function getOglParam(name, defaultValue = null) {
+      const urlParams = new URLSearchParams(window.location.search);
+      let value = urlParams.get(name);
+
+      if (value !== null) {
+        localStorage.setItem(`ogl_${name}`, value);
+      } else {
+        value = localStorage.getItem(`ogl_${name}`);
+      }
+
+      return value !== null ? value : defaultValue;
+    }
+
+    const appId = getOglParam('ogl_appid', 'evw1zYvfTtWJ3gRR8G2bug');
+    let baseUrl = getOglParam('ogl_url', 'guidedlearning.oracle.com');
+    const envType = (getOglParam('ogl_env_type') || '').toLowerCase();
+    const endUser = getOglParam('ogl_end_user');
+
+    baseUrl = baseUrl.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+
+    let envMode = null;
+    if (envType === 'dev' || envType === 'development' || envType === 'stage') {
+      envMode = 'dev';
+    } else if (envType === 'uat' || envType === 'test') {
+      envMode = 'uat';
+    }
+
+    window.iridize = window.iridize || function(e, t, n) {
+      return iridize.api.call(e, t, n);
+    };
+    iridize.api = iridize.api || {
+      q: [],
+      call: function(e, t, n) { iridize.api.q.push({ method: e, data: t, callback: n }); }
+    };
+    iridize.appId = appId;
+    if (envMode) iridize.env = envMode;
+
+    (function() {
+      const script = document.createElement('script');
+      script.src = `https://${baseUrl}/player/latest/static/js/iridizeLoader.min.js`;
+      script.type = 'text/javascript';
+      script.async = true;
+      script.onload = function() {
+        console.log('[OGL] Loader ready → appId:', appId, 'env:', envMode || 'prod', 'user:', endUser || '(not set)');
+
+        if (typeof iridize === 'function' && endUser) {
+          iridize('api.fields.set', { user_id: endUser }, function(success) {
+            console.log('[OGL] User fields set:', success);
+          });
+        }
+      };
+      (document.body || document.head).appendChild(script);
+    })();
+
+    window.clearOglConfig = function() {
+      ['appid','url','env_type','end_user'].forEach(k => localStorage.removeItem(`ogl_${k}`));
+    };
+  </script>
+
+<script>
+function saveForm() {
+    const formData = {};
+    document.querySelectorAll("input, textarea, select").forEach(el => {
+        if (el.name) formData[el.name] = el.value;
+    });
+    console.log("Saved Data:", formData);
+    alert("Form data saved successfully!");
+}
+</script>
+</body>
+
+</html>
